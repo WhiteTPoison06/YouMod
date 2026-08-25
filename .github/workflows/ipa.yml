@@ -1,4 +1,5 @@
 name: Build IPA with tweaks
+
 on:
   workflow_dispatch:
     inputs:
@@ -6,92 +7,77 @@ on:
         description: 'Repository to build from'
         required: true
         default: 'Tonwalter888/YouMod'
-
       branch:
         description: 'Branch to build from'
         required: true
         default: 'main'
-
       ipa_url:
-        description: "URL to the decrypted IPA file"
-        default: ""
+        description: 'URL to the decrypted IPA file'
+        default: ''
         required: true
         type: string
-
       display_name:
-        description: "App Name (Optional)"
-        default: "YouTube"
+        description: 'App Name (Optional)'
+        default: 'YouTube'
         required: true
         type: string
-
       bundle_id:
-        description: "Bundle ID (Optional)"
-        default: "com.google.ios.youtube"
+        description: 'Bundle ID (Optional)'
+        default: 'com.google.ios.youtube'
         required: true
         type: string
-
       youpip:
-        description: "Integrate YouPiP"
+        description: 'Integrate YouPiP'
         default: true
         required: false
         type: boolean
-
       ytuhd:
-        description: "Integrate YTUHD"
+        description: 'Integrate YTUHD'
         default: true
         required: false
         type: boolean
-
       ryd:
-        description: "Integrate Return-YouTube-Dislikes"
+        description: 'Integrate Return-YouTube-Dislikes'
         default: true
         required: false
         type: boolean
-
       abconfig:
-        description: "Integrate YTABConfig"
+        description: 'Integrate YTABConfig'
         default: true
         required: false
         type: boolean
-
       youquality:
-        description: "Integrate YouQuality"
+        description: 'Integrate YouQuality'
         default: false
         required: false
         type: boolean
-
       demc:
-        description: "Integrate DontEatMyContent"
+        description: 'Integrate DontEatMyContent'
         default: true
         required: false
         type: boolean
-
       ytweaks:
-        description: "Integrate YTweaks"
+        description: 'Integrate YTweaks'
         default: true
         required: false
         type: boolean
-
       youslider:
-        description: "Integrate YouSlider"
+        description: 'Integrate YouSlider'
         default: true
         required: false
         type: boolean
-
       gonerino:
-        description: "Integrate Gonerino"
+        description: 'Integrate Gonerino'
         default: true
         required: false
         type: boolean
-
       ytshare:
-        description: "Integrate youtube-native-share"
+        description: 'Integrate youtube-native-share'
         default: true
         required: false
         type: boolean
-
       volboost:
-        description: "Integrate VolumeBoostYT (Require iOS 16+)"
+        description: 'Integrate VolumeBoostYT (Require iOS 16+)'
         default: true
         required: false
         type: boolean
@@ -106,13 +92,12 @@ jobs:
     runs-on: macos-latest
     permissions:
       contents: write
-
     steps:
       - name: Hide Sensitive Inputs
         uses: levibostian/action-hide-sensitive-inputs@v1
         with:
           exclude_inputs: bundle_id,display_name,youpip,ytuhd,ryd,abconfig,ytweaks,youslider,gonerino,demc,volboost,repo,branch,youquality
-          
+
       - name: Install MEGA downloader
         if: ${{ startsWith(inputs.ipa_url, 'https://mega.nz/') }}
         run: brew install megatools
@@ -121,26 +106,23 @@ jobs:
         if: ${{ startsWith(inputs.ipa_url, 'https://mega.nz/') }}
         env:
           IPA_URL: ${{ inputs.ipa_url }}
-        run: |
-          megadl --no-progress --path youtube.ipa "$IPA_URL"
+        run: megadl --no-progress --path youtube.ipa "$IPA_URL"
 
       - name: Download IPA from direct URL
         if: ${{ !startsWith(inputs.ipa_url, 'https://mega.nz/') }}
         env:
           IPA_URL: ${{ inputs.ipa_url }}
-        run: |
-          wget "$IPA_URL" --quiet --no-verbose -O youtube.ipa
+        run: wget "$IPA_URL" --quiet --no-verbose -O youtube.ipa
 
       - name: Validate IPA
         run: |
           file_type=$(file --mime-type -b youtube.ipa)
-
           if [[ "$file_type" != "application/x-ios-app" && "$file_type" != "application/zip" ]]; then
             echo "::error::Validation failed: The downloaded file is not a valid IPA. Detected type: $file_type."
             exit 1
           fi
 
-      - name: Get YouTube Version 
+      - name: Get YouTube Version
         run: |
           unzip -q youtube.ipa -d ytextracted
           echo "YT_VERSION=$(grep -A 1 '<key>CFBundleVersion</key>' ytextracted/Payload/YouTube.app/Info.plist | grep '<string>' | awk -F'[><]' '{print $3}')" >> $GITHUB_ENV
@@ -153,34 +135,33 @@ jobs:
           echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
           echo "THEOS=${{ github.workspace }}/theos" >> $GITHUB_ENV
 
-      # Original from YTweaks
       - name: Get tweaks commit
         run: |
           get_commit_hash() {
             local repo_url=$1
             git ls-remote "$repo_url" HEAD | awk '{print substr($1,1,7)}'
           }
-          echo "THEOS_COMMIT=$(get_commit_hash "https://github.com/theos/theos")" >> $GITHUB_ENV
+          echo "THEOS_COMMIT=$(get_commit_hash "https://github.com/roothide/theos")" >> $GITHUB_ENV
 
       - name: Cache Theos
         id: cache-theos
         uses: actions/cache@v6
         with:
           path: theos
-          key: 26.5-SDK-${{ env.THEOS_COMMIT }}
+          key: 26.5-roothide-SDK-${{ env.THEOS_COMMIT }}
 
       - name: Setup Theos
         if: ${{ steps.cache-theos.outputs.cache-hit != 'true' }}
         run: |
-            git clone --quiet --depth=1 --recurse-submodules https://github.com/theos/theos.git
-            git clone --quiet --depth=1 -n --filter=tree:0 https://github.com/Tonwalter888/iOS-SDKs.git
-            cd iOS-SDKs
-            git sparse-checkout set --no-cone iPhoneOS26.5.sdk
-            git checkout --quiet
-            mv *.sdk "$THEOS/sdks"
-            cd ${{ github.workspace }}/theos/vendor/logos
-            git checkout a62370066a97e36d59b200a9fa10c5091f5e8972
-            
+          git clone --quiet --depth=1 --recurse-submodules https://github.com/roothide/theos.git
+          git clone --quiet --depth=1 -n --filter=tree:0 https://github.com/Tonwalter888/iOS-SDKs.git
+          cd iOS-SDKs
+          git sparse-checkout set --no-cone iPhoneOS26.5.sdk
+          git checkout --quiet
+          mv *.sdk "$THEOS/sdks"
+          cd ${{ github.workspace }}/theos/vendor/logos
+          git checkout a62370066a97e36d59b200a9fa10c5091f5e8972
+
       - name: Clone headers
         run: |
           if [ ! -d "$THEOS/include/YouTubeHeader" ]; then
@@ -190,12 +171,10 @@ jobs:
             git pull --quiet --force
             cd ${{ github.workspace }}
           fi
-          
           if [ "${{ inputs.demc }}" = "true" ]; then
             rm -fr "$THEOS/include/YTHeaders"
             cp -r "$THEOS/include/YouTubeHeader" "$THEOS/include/YTHeaders"
           fi
-          
           if [ ! -d "$THEOS/include/PSHeader" ]; then
             git clone --quiet --depth=1 https://github.com/PoomSmart/PSHeader.git "$THEOS/include/PSHeader"
           else
@@ -228,22 +207,22 @@ jobs:
       - name: Clone YouPiP
         if: ${{ inputs.youpip }}
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouPiP.git
-    
+
       - name: Clone YTUHD
         if: ${{ inputs.ytuhd }}
         run: git clone --quiet --depth=1 --recurse-submodules https://github.com/PoomSmart/YTUHD.git
-           
+
       - name: Clone Return-YouTube-Dislikes
         if: ${{ inputs.ryd }}
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/Return-YouTube-Dislikes.git
 
       - name: Clone YouGroupSettings
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouGroupSettings.git
-           
+
       - name: Clone YTVideoOverlay
         if: ${{ inputs.youpip || inputs.ytuhd || inputs.youquality }}
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YTVideoOverlay.git
-          
+
       - name: Clone YTABConfig
         if: ${{ inputs.abconfig }}
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YTABConfig.git
@@ -287,7 +266,7 @@ jobs:
           echo "YOUMOD_VERSION=$(grep '^Version:' control | cut -d ' ' -f2)" >> $GITHUB_ENV
           make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mv packages/*.deb ${{ github.workspace }}/youmod.deb
-        
+
       - name: Build YouPiP
         if: ${{ inputs.youpip }}
         run: |
@@ -357,7 +336,7 @@ jobs:
           cd YTweaks
           make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mv packages/*.deb ${{ github.workspace }}/ytweaks.deb
-          
+
       - name: Build Gonerino
         if: ${{ inputs.gonerino }}
         run: |
@@ -386,33 +365,22 @@ jobs:
           cd YouQuality
           make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mv packages/*.deb ${{ github.workspace }}/youquality.deb
-          
+
       - name: Inject Tweaks Into IPA
         run: |
           tweaks="OpenYouTubeSafariExtension.appex"
-
           for f in *.deb; do
             tweaks="$tweaks $f"
           done
-          
           cyan -i youtube.ipa -o YouMod_${{ env.YT_VERSION }}_v${{ env.YOUMOD_VERSION }}.ipa -uwef $tweaks -n "${{ inputs.display_name }}" -b ${{ inputs.bundle_id }}
 
       - name: Create a Draft Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: youmod-ipa${{ github.run_number }}
-          name: YouMod_${{ env.YT_VERSION }}_v${{ env.YOUMOD_VERSION }} (${{ github.run_number }}) 
+          name: YouMod_${{ env.YT_VERSION }}_v${{ env.YOUMOD_VERSION }} (${{ github.run_number }})
           files: YouMod_${{ env.YT_VERSION }}_v${{ env.YOUMOD_VERSION }}.ipa
           draft: true
 
       - name: Job Summary - Build Complete
-        run: |
-          echo -e '### 🛠️ Build IPA with tweaks Complete!' >> $GITHUB_STEP_SUMMARY
-
-      - name: Job Summary - Output the Draft Release Link
-        run: |
-          echo -e '### 🚀 Draft Release\n\nDraft release has been created successfully! You can view your release here: https://github.com/${{ github.repository }}/releases' >> $GITHUB_STEP_SUMMARY     
-          
-      - name: Job Summary - Cleanup
-        run: |
-          echo -e '### 🧹 Cleanup\n\nYou can remove previous GitHub Actions run here: https://github.com/${{ github.repository }}/actions/workflows/delete-old-workflows-run.yml And if you want to delelte old draft releases you have then here: https://github.com/${{ github.repository }}/actions/workflows/delete-old-draft-releases.yml' >> $GITHUB_STEP_SUMMARY
+        run: echo -e '### 🛠️ Build IPA with tweaks Complete!' >> $GITHUB_STEP_SUMMARY

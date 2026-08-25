@@ -129,7 +129,7 @@ jobs:
         env:
           IPA_URL: ${{ inputs.ipa_url }}
         run: |
-          wget "$IPA_URL" --quiet --no-verbose -O youtube.ipa
+          curl -L --fail --silent --show-error -o youtube.ipa "$IPA_URL"
 
       - name: Validate IPA
         run: |
